@@ -1,0 +1,55 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+
+  build-windows:
+    name: Windows .exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build
+        run: pyinstaller --onefile --windowed --name drive_parser drive_parser.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drive_parser-windows
+          path: dist/drive_parser.exe
+
+  build-macos:
+    name: macOS .app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build
+        run: pyinstaller --windowed --name drive_parser drive_parser.py
+
+      - name: Zip .app bundle
+        run: ditto -c -k --sequesterRsrc --keepParent dist/drive_parser.app dist/drive_parser-macos.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drive_parser-macos
+          path: dist/drive_parser-macos.zip
