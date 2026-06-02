@@ -28,9 +28,9 @@ DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
 MOD = "Command" if sys.platform == "darwin" else "Control"
 
 
-def _natural_key(s: str) -> list:
-    """Split a string into text/int chunks so '2' < '11' (natural sort)."""
-    return [int(c) if c.isdigit() else c.lower() for c in re.split(r"(\d+)", s)]
+def _natural_key(s: str) -> str:
+    """Zero-pad all digit runs so lexicographic order matches natural order: '2' < '11'."""
+    return re.sub(r'(\d+)', lambda m: m.group(1).zfill(10), s.lower())
 
 
 @dataclass
