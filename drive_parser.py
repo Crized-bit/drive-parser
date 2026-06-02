@@ -543,8 +543,8 @@ class App(ctk.CTk):
             for i in col_indices:
                 val = str(vals[i])
                 if self._strip_prefix:
-                    val = re.sub(r'^(?:v\d[\.\d]*|\d+[\.\)\-:])\s+', '', val)
-                    val = re.sub(r'\.[a-zA-Z0-9]{1,5}$', '', val).strip()
+                    val = re.sub(r'^(?:v\d+(?:\.\d+)*\.?|\d+(?:\.\d+)*[\.\)\-:])\s+', '', val)
+                    val = re.sub(r'\.[a-zA-Z][a-zA-Z0-9]{0,4}$', '', val).strip()
                 parts.append(val)
             rows.append("\t".join(parts))
         self.clipboard_clear()
