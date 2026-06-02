@@ -1,5 +1,6 @@
 import queue
 import re
+import sys
 import threading
 import tkinter as tk
 from dataclasses import astuple, dataclass
@@ -24,6 +25,7 @@ COLUMNS = [
 
 FOLDER_MIME    = "application/vnd.google-apps.folder"
 DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
+MOD = "Command" if sys.platform == "darwin" else "Control"
 
 
 def _natural_key(s: str) -> list:
@@ -129,7 +131,8 @@ class App(ctk.CTk):
 
         self._filter_var = tk.StringVar()
         self._filter_var.trace_add("write", lambda *_: self._apply_filter())
-        self._regex_mode = False
+        self._regex_mode   = False
+        self._strip_prefix = False
 
         self._apply_tree_style()
         self._build_toolbar()
@@ -233,7 +236,18 @@ class App(ctk.CTk):
             text_color="#7a8499",
             command=self._toggle_regex,
         )
-        self._btn_regex.pack(side="left")
+        self._btn_regex.pack(side="left", padx=(0, 4))
+
+        self._btn_strip = ctk.CTkButton(
+            bar, text="1.", width=42, height=34,
+            font=("Helvetica Neue", 13, "bold"),
+            corner_radius=6,
+            fg_color="#2b2d30", hover_color="#3a3d42",
+            border_width=1, border_color="#3c3f41",
+            text_color="#7a8499",
+            command=self._toggle_strip_prefix,
+        )
+        self._btn_strip.pack(side="left")
 
     def _build_table(self) -> None:
         frame = ctk.CTkFrame(self, corner_radius=8, fg_color=TC["bg"])
@@ -260,9 +274,9 @@ class App(ctk.CTk):
         for key, label, _ in COLUMNS:
             self._tree.heading(key, text=label,
                                command=lambda k=key: self._sort_by(k))
-        self._tree.bind("<Shift-Button-1>",   self._toggle_copy_col)
-        self._tree.bind("<Command-Button-1>", self._cmd_click)
-        self._tree.bind("<Command-c>",        self._copy_selection)
+        self._tree.bind("<Shift-Button-1>",          self._toggle_copy_col)
+        self._tree.bind(f"<{MOD}-Button-1>",         self._cmd_click)
+        self._tree.bind(f"<{MOD}-c>",                self._copy_selection)
 
     def _build_statusbar(self) -> None:
         bar = ctk.CTkFrame(self, corner_radius=0, fg_color="#18191c", height=48)
@@ -447,6 +461,19 @@ class App(ctk.CTk):
             )
         self._apply_filter()
 
+    def _toggle_strip_prefix(self) -> None:
+        self._strip_prefix = not self._strip_prefix
+        if self._strip_prefix:
+            self._btn_strip.configure(
+                fg_color="#1f538d", hover_color="#2563a8",
+                border_color="#1f538d", text_color="#ffffff",
+            )
+        else:
+            self._btn_strip.configure(
+                fg_color="#2b2d30", hover_color="#3a3d42",
+                border_color="#3c3f41", text_color="#7a8499",
+            )
+
     def _apply_filter(self) -> None:
         raw = self._filter_var.get()
         pattern = None
@@ -512,7 +539,14 @@ class App(ctk.CTk):
         rows = []
         for iid in selected:
             vals = self._tree.item(iid, "values")
-            rows.append("\t".join(str(vals[i]) for i in col_indices))
+            parts = []
+            for i in col_indices:
+                val = str(vals[i])
+                if self._strip_prefix:
+                    val = re.sub(r'^(?:v\d[\.\d]*|\d+[\.\)\-:])\s+', '', val)
+                    val = re.sub(r'\.[a-zA-Z0-9]{1,5}$', '', val).strip()
+                parts.append(val)
+            rows.append("\t".join(parts))
         self.clipboard_clear()
         self.clipboard_append("\n".join(rows))
         return "break"
@@ -557,8 +591,6 @@ class App(ctk.CTk):
     # ── Clipboard bindings (cross-platform) ──────────────────────────────────
 
     def _bind_clipboard(self) -> None:
-        import sys
-
         def paste(e):
             try:
                 text = self.clipboard_get()
@@ -594,9 +626,8 @@ class App(ctk.CTk):
             e.widget.icursor("end")
             return "break"
 
-        modifier = "Command" if sys.platform == "darwin" else "Control"
-        for seq, fn in [(f"<{modifier}-v>", paste), (f"<{modifier}-c>", copy),
-                        (f"<{modifier}-x>", cut),   (f"<{modifier}-a>", select_all)]:
+        for seq, fn in [(f"<{MOD}-v>", paste), (f"<{MOD}-c>", copy),
+                        (f"<{MOD}-x>", cut),  (f"<{MOD}-a>", select_all)]:
             self.bind_class("Entry", seq, fn)
 
 
