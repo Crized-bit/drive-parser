@@ -136,7 +136,7 @@ class App(ctk.CTk):
         self._build_search()
         self._build_table()
         self._build_statusbar()
-        self._bind_macos_clipboard()
+        self._bind_clipboard()
 
     # ── Treeview theme ────────────────────────────────────────────────────────
 
@@ -554,39 +554,49 @@ class App(ctk.CTk):
             self._progress.stop()
             self._progress.pack_forget()
 
-    # ── macOS clipboard ───────────────────────────────────────────────────────
+    # ── Clipboard bindings (cross-platform) ──────────────────────────────────
 
-    def _bind_macos_clipboard(self) -> None:
+    def _bind_clipboard(self) -> None:
+        import sys
+
         def paste(e):
             try:
-                text = e.widget.selection_get(selection="CLIPBOARD")
-                try:    e.widget.delete("sel.first", "sel.last")
-                except tk.TclError: pass
+                text = self.clipboard_get()
+                try:
+                    e.widget.delete("sel.first", "sel.last")
+                except tk.TclError:
+                    pass
                 e.widget.insert("insert", text)
-            except tk.TclError: pass
+            except tk.TclError:
+                pass
             return "break"
 
         def copy(e):
             try:
                 self.clipboard_clear()
                 self.clipboard_append(e.widget.selection_get())
-            except tk.TclError: pass
+            except tk.TclError:
+                pass
             return "break"
 
         def cut(e):
             try:
                 text = e.widget.selection_get()
-                self.clipboard_clear(); self.clipboard_append(text)
+                self.clipboard_clear()
+                self.clipboard_append(text)
                 e.widget.delete("sel.first", "sel.last")
-            except tk.TclError: pass
+            except tk.TclError:
+                pass
             return "break"
 
         def select_all(e):
-            e.widget.select_range(0, "end"); e.widget.icursor("end")
+            e.widget.select_range(0, "end")
+            e.widget.icursor("end")
             return "break"
 
-        for seq, fn in [("<Command-v>", paste), ("<Command-c>", copy),
-                        ("<Command-x>", cut),   ("<Command-a>", select_all)]:
+        modifier = "Command" if sys.platform == "darwin" else "Control"
+        for seq, fn in [(f"<{modifier}-v>", paste), (f"<{modifier}-c>", copy),
+                        (f"<{modifier}-x>", cut),   (f"<{modifier}-a>", select_all)]:
             self.bind_class("Entry", seq, fn)
 
 
